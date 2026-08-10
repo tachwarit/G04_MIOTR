@@ -1,0 +1,7 @@
+# Configuration de l'entraînement RL - src/train.py
+
+algo: dqn              # "dqn" ou "ppo"
+total_timesteps: 50000
+learning_rate: 0.0003
+seed: 42
+eval_freq: 2000        # fréquence (en pas) d'évaluation pendant l'entraînement
