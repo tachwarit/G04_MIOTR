@@ -123,17 +123,26 @@ if __name__ == "__main__":
     # avec RUL_pred généré par le modèle Random Forest de rul_model.py
     from data import load_fd001, compute_train_rul, SETTING_NAMES
     from rul_model import select_features
+    from config import load_config
     from sklearn.ensemble import RandomForestRegressor
+
+    rul_cfg = load_config("configs/rul_model.yaml")
+    env_cfg = load_config("configs/env.yaml")
 
     train, _, _ = load_fd001()
     train = compute_train_rul(train)
-    feature_cols = SETTING_NAMES + select_features(train)
+    feature_cols = SETTING_NAMES + select_features(train, rul_cfg["variance_threshold"])
 
-    rf = RandomForestRegressor(n_estimators=200, max_depth=10, random_state=42, n_jobs=-1)
-    rf.fit(train[feature_cols], train["RUL"].clip(upper=125))
+    rf = RandomForestRegressor(
+        n_estimators=rul_cfg["n_estimators"], max_depth=rul_cfg["max_depth"],
+        random_state=rul_cfg["random_state"], n_jobs=-1,
+    )
+    rf.fit(train[feature_cols], train["RUL"].clip(upper=rul_cfg["rul_cap"]))
     train["RUL_pred"] = rf.predict(train[feature_cols])
 
-    env = PredictiveMaintenanceEnv(train, rul_cap=125, seed=0)
+    env = PredictiveMaintenanceEnv(
+        train, rul_cap=env_cfg["rul_cap"], reward_params=env_cfg["reward"], seed=0
+    )
     obs, info = env.reset()
     total_reward = 0.0
     for _ in range(500):

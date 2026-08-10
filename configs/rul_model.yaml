@@ -1,0 +1,14 @@
+# Configuration du modèle RUL (Random Forest) - src/rul_model.py
+
+# Cap standard en littérature C-MAPSS : au-delà, le RUL réel est peu
+# prédictible à partir des capteurs (dégradation pas encore visible).
+rul_cap: 125
+
+# Hyperparamètres du Random Forest
+n_estimators: 200
+max_depth: 10
+random_state: 42
+
+# Seuil de variance en dessous duquel un capteur est jugé quasi constant
+# et donc écarté des features (voir select_features)
+variance_threshold: 0.0001

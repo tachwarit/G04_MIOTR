@@ -1,4 +1,4 @@
-"""pip install pandas matplotlib
+"""
 src/data.py
 Téléchargement, chargement et RUL du dataset NASA C-MAPSS (sous-ensemble FD001).
 Source officielle : https://data.nasa.gov/docs/legacy/CMAPSSData.zip
@@ -81,14 +81,16 @@ if __name__ == "__main__":
     plt.savefig("figures/fd001_life_distribution.pdf")
 
     # Trajectoire de dégradation de quelques capteurs pour le moteur 1
+    # (un subplot par capteur : les échelles brutes sont trop différentes
+    # pour être lisibles sur un seul graphique - ex: s_3 ~1500 vs s_15 ~8)
     unit1 = train[train.unit_nr == 1]
-    plt.figure(figsize=(8, 5))
-    for s in ["s_2", "s_3", "s_4", "s_7", "s_11", "s_15"]:
-        plt.plot(unit1.time_cycles, unit1[s], label=s)
-    plt.xlabel("Cycle")
-    plt.ylabel("Valeur capteur")
-    plt.title("Trajectoire de dégradation - moteur 1 (FD001)")
-    plt.legend()
+    sensors_to_plot = ["s_2", "s_3", "s_4", "s_7", "s_11", "s_15"]
+    fig, axes = plt.subplots(2, 3, figsize=(12, 6), sharex=True)
+    for ax, s in zip(axes.flat, sensors_to_plot):
+        ax.plot(unit1.time_cycles, unit1[s])
+        ax.set_title(s)
+        ax.set_xlabel("Cycle")
+    fig.suptitle("Trajectoire de dégradation - moteur 1 (FD001)")
     plt.tight_layout()
     plt.savefig("figures/fd001_unit1_sensors.pdf")
 

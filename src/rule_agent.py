@@ -56,20 +56,34 @@ if __name__ == "__main__":
     from data import load_fd001, compute_train_rul, SETTING_NAMES
     from rul_model import select_features
     from env import PredictiveMaintenanceEnv
+    from config import load_config
     from sklearn.ensemble import RandomForestRegressor
+
+    rul_cfg = load_config("configs/rul_model.yaml")
+    env_cfg = load_config("configs/env.yaml")
+    agent_cfg = load_config("configs/rule_agent.yaml")
 
     train, _, _ = load_fd001()
     train = compute_train_rul(train)
-    feature_cols = SETTING_NAMES + select_features(train)
+    feature_cols = SETTING_NAMES + select_features(train, rul_cfg["variance_threshold"])
 
-    rf = RandomForestRegressor(n_estimators=200, max_depth=10, random_state=42, n_jobs=-1)
-    rf.fit(train[feature_cols], train["RUL"].clip(upper=125))
+    rf = RandomForestRegressor(
+        n_estimators=rul_cfg["n_estimators"], max_depth=rul_cfg["max_depth"],
+        random_state=rul_cfg["random_state"], n_jobs=-1,
+    )
+    rf.fit(train[feature_cols], train["RUL"].clip(upper=rul_cfg["rul_cap"]))
     train["RUL_pred"] = rf.predict(train[feature_cols])
 
-    env = PredictiveMaintenanceEnv(train, rul_cap=125, seed=0)
-    agent = RuleBasedAgent(maint_threshold=30, critical_threshold=5, rul_cap=125)
+    env = PredictiveMaintenanceEnv(
+        train, rul_cap=env_cfg["rul_cap"], reward_params=env_cfg["reward"], seed=0
+    )
+    agent = RuleBasedAgent(
+        maint_threshold=agent_cfg["maint_threshold"],
+        critical_threshold=agent_cfg["critical_threshold"],
+        rul_cap=agent_cfg["rul_cap"],
+    )
 
-    stats = evaluate(env, agent, n_episodes=100)
+    stats = evaluate(env, agent, n_episodes=agent_cfg["n_episodes"])
     print("Baseline agent à règles - 100 épisodes :")
     for k, v in stats.items():
         print(f"  {k} : {v}")

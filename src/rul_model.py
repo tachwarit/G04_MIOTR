@@ -12,12 +12,11 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 from data import load_fd001, compute_train_rul, SENSOR_NAMES, SETTING_NAMES
+from config import load_config
 
-# Cap standard dans la littérature C-MAPSS : au-delà, le RUL réel est peu
-# prédictible à partir des capteurs (dégradation pas encore visible).
-RUL_CAP = 125
 RESULTS_DIR = "results"
 FIGURES_DIR = "figures"
+CONFIG_PATH = "configs/rul_model.yaml"
 
 
 def select_features(train, variance_threshold=1e-4):
@@ -30,9 +29,9 @@ def select_features(train, variance_threshold=1e-4):
     return kept
 
 
-def build_train_set(train, feature_cols):
+def build_train_set(train, feature_cols, rul_cap):
     X = train[feature_cols]
-    y = train["RUL"].clip(upper=RUL_CAP)
+    y = train["RUL"].clip(upper=rul_cap)
     return X, y
 
 
@@ -46,19 +45,21 @@ def build_test_set(test, rul_test, feature_cols):
 
 
 def main():
+    cfg = load_config(CONFIG_PATH)
     os.makedirs(RESULTS_DIR, exist_ok=True)
     os.makedirs(FIGURES_DIR, exist_ok=True)
 
     train, test, rul_test = load_fd001()
     train = compute_train_rul(train)
 
-    feature_cols = SETTING_NAMES + select_features(train)
+    feature_cols = SETTING_NAMES + select_features(train, cfg["variance_threshold"])
 
-    X_train, y_train = build_train_set(train, feature_cols)
+    X_train, y_train = build_train_set(train, feature_cols, cfg["rul_cap"])
     X_test, y_test = build_test_set(test, rul_test, feature_cols)
 
     model = RandomForestRegressor(
-        n_estimators=200, max_depth=10, random_state=42, n_jobs=-1
+        n_estimators=cfg["n_estimators"], max_depth=cfg["max_depth"],
+        random_state=cfg["random_state"], n_jobs=-1,
     )
     model.fit(X_train, y_train)
 
@@ -70,7 +71,7 @@ def main():
 
     pd.DataFrame([{
         "model": "random_forest", "rmse": rmse, "mae": mae,
-        "rul_cap": RUL_CAP, "n_estimators": 200,
+        "rul_cap": cfg["rul_cap"], "n_estimators": cfg["n_estimators"],
     }]).to_csv(os.path.join(RESULTS_DIR, "rul_metrics.csv"), index=False)
 
     pd.DataFrame({

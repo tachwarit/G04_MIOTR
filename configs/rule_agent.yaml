@@ -1,0 +1,6 @@
+# Configuration de l'agent baseline à règles - src/rule_agent.py
+
+rul_cap: 125
+maint_threshold: 30       # RUL estimé (cycles) en dessous duquel on planifie une maintenance
+critical_threshold: 5     # RUL estimé (cycles) en dessous duquel on déclenche un arrêt d'urgence
+n_episodes: 100           # nombre d'épisodes pour l'évaluation
