@@ -31,14 +31,12 @@ class SB3AgentWrapper:
 def main():
     rul_cfg = load_config("configs/rul_model.yaml")
     env_cfg = load_config("configs/env.yaml")
-    train_cfg = load_config("configs/train.yaml")
     agent_cfg = load_config("configs/rule_agent.yaml")
-
-    algo_name = train_cfg["algo"].lower()
-    AlgoClass = ALGOS[algo_name]
 
     data = build_data_with_rul_pred(rul_cfg)
     n_episodes = agent_cfg["n_episodes"]
+
+    stats_list = []
 
     # Agent à règles (baseline)
     rule_env = make_env(data, env_cfg, seed=123)
@@ -49,16 +47,21 @@ def main():
     )
     rule_stats = evaluate(rule_env, rule_agent, n_episodes=n_episodes)
     rule_stats["policy"] = "rule_based"
+    stats_list.append(rule_stats)
 
-    # Agent RL entraîné (modèle final sauvegardé par train.py)
-    model_path = os.path.join("results", f"{algo_name}_model")
-    model = AlgoClass.load(model_path)
-    rl_env = make_env(data, env_cfg, seed=123)
-    rl_agent = SB3AgentWrapper(model)
-    rl_stats = evaluate(rl_env, rl_agent, n_episodes=n_episodes)
-    rl_stats["policy"] = algo_name
+    # Tous les modèles RL entraînés disponibles dans results/ (dqn et/ou ppo)
+    for algo_name, AlgoClass in ALGOS.items():
+        model_path = os.path.join("results", f"{algo_name}_model")
+        if not os.path.exists(model_path + ".zip"):
+            continue
+        model = AlgoClass.load(model_path)
+        rl_env = make_env(data, env_cfg, seed=123)
+        rl_agent = SB3AgentWrapper(model)
+        rl_stats = evaluate(rl_env, rl_agent, n_episodes=n_episodes)
+        rl_stats["policy"] = algo_name
+        stats_list.append(rl_stats)
 
-    comparison = pd.DataFrame([rule_stats, rl_stats])
+    comparison = pd.DataFrame(stats_list)
     comparison = comparison[["policy", "mean_reward", "std_reward",
                               "n_failures", "n_maintenance", "n_stop", "n_episodes"]]
     print(comparison.to_string(index=False))
@@ -71,7 +74,7 @@ def main():
     plt.bar(comparison["policy"], comparison["mean_reward"],
             yerr=comparison["std_reward"], capsize=5)
     plt.ylabel("Récompense moyenne")
-    plt.title(f"Agent à règles vs {algo_name.upper()} ({n_episodes} épisodes)")
+    plt.title(f"Comparaison des politiques ({n_episodes} épisodes)")
     plt.tight_layout()
     plt.savefig("figures/comparison_rl_vs_rule.pdf")
 

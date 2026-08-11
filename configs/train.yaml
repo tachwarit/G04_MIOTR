@@ -1,6 +1,6 @@
 # Configuration de l'entraînement RL - src/train.py
 
-algo: dqn              # "dqn" ou "ppo"
+algo: ppo              # "dqn" ou "ppo"
 total_timesteps: 50000
 learning_rate: 0.0003
 seed: 42
