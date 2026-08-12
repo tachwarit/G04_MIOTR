@@ -27,8 +27,10 @@ G04_MIOTR/
 │   ├── rul_model.py           # modèle RUL (Random Forest)
 │   ├── env.py                  # environnement Gymnasium custom
 │   ├── rule_agent.py            # agent baseline à règles
-│   ├── train.py                  # entraînement de l'agent RL (à venir)
-│   └── eval.py                    # évaluation / comparaison (à venir)
+│   ├── train.py                  # entraînement DQN/PPO multi-seed
+│   ├── eval.py                    # comparaison RL vs baseline à règles
+│   ├── plot_curves.py              # courbes d'apprentissage (mean ± std)
+│   └── robustness_test.py           # robustesse par profil de dégradation
 ├── results/                # métriques et prédictions (.csv)
 ├── logs/                    # logs TensorBoard / W&B
 ├── figures/                  # figures vectorielles (.pdf)
@@ -56,9 +58,14 @@ bash run_all.sh
 ```
 
 Ce script exécute dans l'ordre : téléchargement/exploration des données,
-entraînement du modèle RUL, test de l'environnement Gymnasium, et
-évaluation de l'agent baseline à règles. Il régénère tous les fichiers de
-`results/` et `figures/`.
+entraînement du modèle RUL, test de l'environnement Gymnasium, évaluation de
+l'agent baseline à règles, entraînement DQN et PPO (3 seeds chacun),
+génération des courbes d'apprentissage (moyenne ± écart-type), comparaison
+RL vs baseline, et test de robustesse par profil de dégradation. Il régénère
+tous les fichiers de `results/`, `figures/` et `logs/`.
+
+⚠️ L'entraînement multi-seed (2 algos × 3 seeds) prend environ 1 heure sur
+CPU. Réduire `total_timesteps` dans `configs/train.yaml` pour un test rapide.
 
 ## Exécution sur Google Colab
 
@@ -77,10 +84,15 @@ entraînement du modèle RUL, test de l'environnement Gymnasium, et
 - [x] Environnement Gymnasium custom (état/actions/récompense)
 - [x] Agent baseline à règles (seuils sur le RUL estimé)
 
-**Milestone 2 — Agent RL appris (à venir)**
-- [ ] Entraînement DQN/PPO (`src/train.py`)
-- [ ] Comparaison quantitative agent RL vs baseline à règles (`src/eval.py`)
+**Milestone 2 — Agent RL appris (quasi terminé)**
+- [x] Entraînement DQN et PPO, 3 seeds chacun (`src/train.py`)
+- [x] Courbes d'apprentissage moyenne ± écart-type (`src/plot_curves.py`)
+- [x] Comparaison quantitative agent RL vs baseline à règles (`src/eval.py`) —
+      DQN 10.96 / PPO 10.47 / règles 6.32 (récompense moyenne, 100 épisodes,
+      0 panne pour les trois)
+- [x] Test de robustesse par profil de dégradation (`src/robustness_test.py`)
 - [ ] Vidéos avant/après entraînement
+- [ ] `report.pdf`
 
 ## Configuration
 
