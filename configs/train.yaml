@@ -1,6 +1,6 @@
 # Configuration de l'entraînement RL - src/train.py
 
-algo: ppo              # "dqn" ou "ppo"
+algos: [dqn, ppo]      # liste des algos à entraîner (run_all.sh les entraîne tous)
 total_timesteps: 50000
 learning_rate: 0.0003
 seed: 42

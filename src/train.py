@@ -42,18 +42,7 @@ def make_env(data, env_cfg, seed=None, log_dir=None):
     return env
 
 
-def main():
-    rul_cfg = load_config("configs/rul_model.yaml")
-    env_cfg = load_config("configs/env.yaml")
-    train_cfg = load_config("configs/train.yaml")
-
-    algo_name = train_cfg["algo"].lower()
-    if algo_name not in ALGOS:
-        raise ValueError(f"algo doit être 'dqn' ou 'ppo', reçu : {algo_name}")
-    AlgoClass = ALGOS[algo_name]
-
-    data = build_data_with_rul_pred(rul_cfg)
-
+def train_one(algo_name, AlgoClass, data, env_cfg, train_cfg):
     log_dir = os.path.join("logs", algo_name)
     train_env = make_env(data, env_cfg, seed=train_cfg["seed"], log_dir=log_dir)
     eval_env = make_env(data, env_cfg, seed=train_cfg["seed"] + 1000)
@@ -88,6 +77,23 @@ def main():
     print(f"Modèle entraîné sauvegardé dans {model_path}.zip")
     print(f"Logs TensorBoard dans logs/{algo_name}_1/ "
           f"(lance : tensorboard --logdir logs)")
+
+
+def main():
+    rul_cfg = load_config("configs/rul_model.yaml")
+    env_cfg = load_config("configs/env.yaml")
+    train_cfg = load_config("configs/train.yaml")
+
+    algo_names = [a.lower() for a in train_cfg["algos"]]
+    for algo_name in algo_names:
+        if algo_name not in ALGOS:
+            raise ValueError(f"algos doit contenir 'dqn' et/ou 'ppo', reçu : {algo_name}")
+
+    data = build_data_with_rul_pred(rul_cfg)
+
+    for algo_name in algo_names:
+        print(f"\n===== Entraînement {algo_name.upper()} =====")
+        train_one(algo_name, ALGOS[algo_name], data, env_cfg, train_cfg)
 
 
 if __name__ == "__main__":

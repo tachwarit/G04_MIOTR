@@ -16,5 +16,14 @@ python src/env.py
 echo "== 4. Agent baseline à règles =="
 python src/rule_agent.py
 
+echo "== 5. Entraînement de l'agent RL (DQN/PPO, voir configs/train.yaml) =="
+python src/train.py
+
+echo "== 6. Comparaison RL vs baseline à règles =="
+python src/eval.py
+
+echo "== 7. Test de robustesse (profils de dégradation) =="
+python src/robustness_test.py
+
 echo ""
-echo "Terminé. Résultats dans results/, figures dans figures/."
+echo "Terminé. Résultats dans results/, figures dans figures/, logs dans logs/."
