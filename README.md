@@ -1,4 +1,4 @@
-# G04_MIOTR — Predictive Maintenance Agent
+# Predictive Maintenance Agent for Autonomous Condition-Based Servicing of Industrial Robotic Fleets
 
 Agent de maintenance prédictive pour flottes de robots industriels, par
 apprentissage par renforcement, appliqué au dataset NASA C-MAPSS (FD001).
