@@ -16,8 +16,11 @@ python src/env.py
 echo "== 4. Agent baseline à règles =="
 python src/rule_agent.py
 
-echo "== 5. Entraînement de l'agent RL (DQN/PPO, voir configs/train.yaml) =="
+echo "== 5. Entraînement de l'agent RL (DQN/PPO, multi-seed, voir configs/train.yaml) =="
 python src/train.py
+
+echo "== 5b. Courbes d'apprentissage (moyenne ± écart-type sur les seeds) =="
+python src/plot_curves.py
 
 echo "== 6. Comparaison RL vs baseline à règles =="
 python src/eval.py
