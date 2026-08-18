@@ -1,9 +1,12 @@
 """
 src/eval.py
-Comparaison quantitative : agent RL entraîné (DQN/PPO) vs agent baseline
-à règles, sur le même protocole d'évaluation (n_episodes déterministes).
+Comparaison quantitative : agent à règles (baseline) vs DQN vs PPO,
+sur le protocole officiel à 3 seeds (configs/train.yaml -> seeds).
+Remplace l'ancienne évaluation à seed unique (123), désormais périmée.
 """
 import os
+import math
+import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
@@ -28,57 +31,95 @@ class SB3AgentWrapper:
         return int(action)
 
 
+def iqm(values):
+    values = np.asarray(values, dtype=float)
+    q25, q75 = np.percentile(values, [25, 75])
+    mask = (values >= q25) & (values <= q75)
+    return float(values[mask].mean()) if mask.any() else float(values.mean())
+
+
+def aggregate(per_seed_means):
+    m = float(np.mean(per_seed_means))
+    if len(per_seed_means) > 1:
+        sd = float(np.std(per_seed_means, ddof=1))
+        se = sd / math.sqrt(len(per_seed_means))
+    else:
+        se = 0.0
+    return m, 1.96 * se, iqm(per_seed_means)
+
+
 def main():
     rul_cfg = load_config("configs/rul_model.yaml")
     env_cfg = load_config("configs/env.yaml")
+    train_cfg = load_config("configs/train.yaml")
     agent_cfg = load_config("configs/rule_agent.yaml")
 
-    data = build_data_with_rul_pred(rul_cfg)
+    seeds = train_cfg["seeds"]
     n_episodes = agent_cfg["n_episodes"]
+    data = build_data_with_rul_pred(rul_cfg)
 
-    stats_list = []
+    rows = []
 
-    # Agent à règles (baseline)
-    rule_env = make_env(data, env_cfg, seed=123)
+    # --- Baseline (agent à règles), sur les 3 seeds officiels ---
     rule_agent = RuleBasedAgent(
         maint_threshold=agent_cfg["maint_threshold"],
         critical_threshold=agent_cfg["critical_threshold"],
         rul_cap=agent_cfg["rul_cap"],
     )
-    rule_stats = evaluate(rule_env, rule_agent, n_episodes=n_episodes)
-    rule_stats["policy"] = "rule_based"
-    stats_list.append(rule_stats)
+    baseline_means, baseline_failures = [], []
+    for seed in seeds:
+        env = make_env(data, env_cfg, seed=seed)
+        stats = evaluate(env, rule_agent, n_episodes=n_episodes)
+        baseline_means.append(stats["mean_reward"])
+        baseline_failures.append(stats["n_failures"])
+        rows.append({"policy": "rule_based", "seed": seed,
+                      "mean_reward": stats["mean_reward"], "n_failures": stats["n_failures"]})
+    m, ci, q = aggregate(baseline_means)
+    rows.append({"policy": "rule_based", "seed": "aggregate", "mean_reward": m,
+                 "ci95": ci, "iqm": q, "n_failures": sum(baseline_failures)})
 
-    # Tous les modèles RL entraînés disponibles dans results/ (dqn et/ou ppo)
+    # --- DQN / PPO, modèles sauvegardés par seed (results/{algo}_seed{n}_model.zip) ---
     for algo_name, AlgoClass in ALGOS.items():
-        model_path = os.path.join("results", f"{algo_name}_model")
-        if not os.path.exists(model_path + ".zip"):
-            continue
-        model = AlgoClass.load(model_path)
-        rl_env = make_env(data, env_cfg, seed=123)
-        rl_agent = SB3AgentWrapper(model)
-        rl_stats = evaluate(rl_env, rl_agent, n_episodes=n_episodes)
-        rl_stats["policy"] = algo_name
-        stats_list.append(rl_stats)
+        algo_means, algo_failures = [], []
+        for seed in seeds:
+            model_path = os.path.join("results", f"{algo_name}_seed{seed}_model")
+            if not os.path.exists(model_path + ".zip"):
+                print(f"[manquant] {model_path}.zip — lance python src/train.py d'abord")
+                continue
+            model = AlgoClass.load(model_path)
+            env = make_env(data, env_cfg, seed=seed)
+            stats = evaluate(env, SB3AgentWrapper(model), n_episodes=n_episodes)
+            algo_means.append(stats["mean_reward"])
+            algo_failures.append(stats["n_failures"])
+            rows.append({"policy": algo_name, "seed": seed,
+                          "mean_reward": stats["mean_reward"], "n_failures": stats["n_failures"]})
+        if algo_means:
+            m, ci, q = aggregate(algo_means)
+            rows.append({"policy": algo_name, "seed": "aggregate", "mean_reward": m,
+                         "ci95": ci, "iqm": q, "n_failures": sum(algo_failures)})
 
-    comparison = pd.DataFrame(stats_list)
-    comparison = comparison[["policy", "mean_reward", "std_reward",
-                              "n_failures", "n_maintenance", "n_stop", "n_episodes"]]
-    print(comparison.to_string(index=False))
-
+    results = pd.DataFrame(rows)
     os.makedirs("results", exist_ok=True)
-    comparison.to_csv("results/comparison_rl_vs_rule.csv", index=False)
+    results.to_csv("results/comparison_rl_vs_rule.csv", index=False)
+    print(results.to_string(index=False))
+
+    # --- Figure : moyenne agrégée ± IC95, sur les 3 politiques ---
+    agg = results[results.seed == "aggregate"].set_index("policy")
+    policies = [p for p in ["rule_based", "dqn", "ppo"] if p in agg.index]
+    means = [agg.loc[p, "mean_reward"] for p in policies]
+    cis = [agg.loc[p, "ci95"] for p in policies]
 
     os.makedirs("figures", exist_ok=True)
-    plt.figure(figsize=(5, 4))
-    plt.bar(comparison["policy"], comparison["mean_reward"],
-            yerr=comparison["std_reward"], capsize=5)
-    plt.ylabel("Récompense moyenne")
-    plt.title(f"Comparaison des politiques ({n_episodes} épisodes)")
+    fig, ax = plt.subplots(figsize=(6, 4.5))
+    colors = ["#4C72B0", "#55A868", "#C44E52"][:len(policies)]
+    ax.bar(policies, means, yerr=cis, capsize=6, color=colors)
+    ax.axhline(0, color="black", linewidth=0.8)
+    ax.set_ylabel("Récompense moyenne (± IC 95%, approximation normale)")
+    ax.set_title(f"Comparaison des politiques ({len(seeds)} seeds officiels)")
     plt.tight_layout()
     plt.savefig("figures/comparison_rl_vs_rule.pdf")
 
-    print("Comparaison sauvegardée dans results/comparison_rl_vs_rule.csv "
+    print("\nSauvegardé dans results/comparison_rl_vs_rule.csv "
           "et figures/comparison_rl_vs_rule.pdf")
 
 

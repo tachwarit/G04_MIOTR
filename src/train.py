@@ -73,8 +73,12 @@ def train_one(algo_name, AlgoClass, data, env_cfg, train_cfg, seed, save_model=F
         tb_log_name=f"{algo_name}_seed{seed}",
     )
 
+    os.makedirs("results", exist_ok=True)
+    seed_model_path = os.path.join("results", f"{algo_name}_seed{seed}_model")
+    model.save(seed_model_path)
+    print(f"Modèle (seed={seed}) sauvegardé dans {seed_model_path}.zip")
+
     if save_model:
-        os.makedirs("results", exist_ok=True)
         model_path = os.path.join("results", f"{algo_name}_model")
         model.save(model_path)
         print(f"Modèle de référence (seed={seed}) sauvegardé dans {model_path}.zip")

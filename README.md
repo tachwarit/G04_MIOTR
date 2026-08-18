@@ -76,6 +76,19 @@ CPU. Réduire `total_timesteps` dans `configs/train.yaml` pour un test rapide.
 !bash run_all.sh
 ```
 
+## Générer une vidéo de démonstration
+
+```bash
+python src/generate_video.py --algo ppo --output videos/ppo_vs_rule.mp4
+# ou, pour comparer les trois politiques sur le même moteur :
+python src/generate_video.py --algo all --output videos/comparison.mp4
+```
+
+Le script charge automatiquement le dataset FD001, reconstruit le modèle RUL,
+charge le modèle RL sauvegardé dans `results/` (ou le baseline à règles), puis
+produit une vidéo MP4 dans `videos/` pour visualiser les décisions d'entretien
+avant/après entraînement.
+
 ## État d'avancement
 
 **Milestone 1 — Scaffolding et pipeline (terminé)**
